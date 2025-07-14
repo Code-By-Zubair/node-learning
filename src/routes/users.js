@@ -27,5 +27,13 @@ router.delete('/:id', protect, (req, res) => {
     const { delteUser } = require('../controllers/userController');
     delteUser(req, res);
 });
+    
+router.get('/:id', protect, (req, res)=>{
+    const { getUserById } = require('../controllers/userController');
+    getUserById(req, res);
+});
+// Get user by ID
+
+
 
 module.exports = router;

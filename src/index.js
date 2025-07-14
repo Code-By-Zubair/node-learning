@@ -1,9 +1,10 @@
+
 const express = require('express');
 const logger = require('./middleware/loggers');
 const app = express();
 const Port =3000;
 
-
+require('dotenv').config();
 app.use(express.json());
 app.use(logger);
 

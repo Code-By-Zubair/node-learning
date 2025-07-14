@@ -2,9 +2,9 @@
 
 const bcrypt = require('bcryptjs');
 const jwt =require('jsonwebtoken');
-const dummyUsers = require('../data');
 
-let users = dummyUsers;
+let users = require('../data/users'); 
+const dummy_users = require('../data/users');
 
 const registerUser = async (req, res)=>{
     const {name, email, password} = req.body;
@@ -24,7 +24,8 @@ const registerUser = async (req, res)=>{
         email,
         password: hashedPassword
     };
-    dummyUsers.push(newUser);
+     dummy_users.push(newUser);
+    users.push(newUser);
     res.status(201).json({message: 'User registered successfully', user: {id: newUser.id, name: newUser.name, email: newUser.email}});
 };
 
@@ -41,7 +42,7 @@ const loginUser = async (req, res)=> {
     if(!isPasswordValid){
         return res.status(401).json({error: 'Invalid password'});
     }
-    const token = jwt.sign({id: user.id}, 'your_jwt_secret', {expiresIn: '1h'});
+    const token = jwt.sign({id: user.id}, process.env.JWT_SECRET, {expiresIn: '1h'});
     res.status(200).json({message: 'Login successful', token, user: {id: user.id, name: user.name, email: user.email}});
 };
 

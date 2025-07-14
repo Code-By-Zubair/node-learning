@@ -1,8 +1,6 @@
 const bcrypt = require('bcryptjs');
-const dummyUsers = require('../data');
-let users = dummyUsers;
 const getUsers = (req,res)=>{
-    res.json(users);
+    res.json(require('../data/users'));
 }
 
 // post api
@@ -12,7 +10,7 @@ const createUser=(req,res)=>{
     if(!name){
         return res.status(400).json({error: 'Name is required'});
     }
-    const existingUser = users.find(user => user.name === name);
+    const existingUser = require('../data/users').find(user => user.name === name);
     if(existingUser){
         return res.status(409).json({error: 'User already exists'});
     }
@@ -20,16 +18,15 @@ const createUser=(req,res)=>{
         id: users.length + 1,
         name
     };
-    users.push(newUser);
+    require('../data/users').push(newUser);
     res.status(201).json(newUser);
 };
 
 const updateUser =(req, res)=> {
     const userId = parseInt(req.params.id, 10);
     const { name, email, password } = req.body;
-    // log all users
-    console.log(users);
-    const user = users.find(u=> u.id === userId);
+    
+    const user = require('../data/users').find(u => u.id === userId);
 
     if(!user){
         return res.status(404).json({ error: 'User not found' });
@@ -48,16 +45,29 @@ const updateUser =(req, res)=> {
 // delte user
 const delteUser = (req, res)=> {
     const userId = parseInt(req.params.id, 10);
-    const userIndex = users.findIndex(u => u.id === userId);
+    const userIndex = require('../data/users').findIndex(u => u.id === userId);
     if(userIndex === -1){
         return res.status(404).json({ error: 'User not found' });
     }
-    users.splice(userIndex, 1);
+    require('../data/users').splice(userIndex, 1);
     res.json({ message: 'User deleted successfully' });
+}
+
+const getUserById =(req, res) => {
+    const userId = parseInt(req.params.id, 10);
+    const user = require('../data/users').find(u => u.id === userId);
+    if(!user){
+        return res.status(404).json({ error: 'User not found' });
+    }
+    // return user without password
+    const {password, ...userWithoutPassword} = user;
+    res.json(userWithoutPassword);
+
 }
 module.exports = {
     getUsers,
     createUser,
     updateUser,
     delteUser,
+    getUserById,
 };
