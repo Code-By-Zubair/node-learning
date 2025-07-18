@@ -24,15 +24,14 @@ router.put('/:id', protect, (req, res) => {
 });
 // Delete user
 router.delete('/:id', protect, (req, res) => {
-    const { delteUser } = require('../controllers/userController');
-    delteUser(req, res);
+    const { deleteUser } = require('../controllers/userController');
+    deleteUser(req, res);
 });
     
 router.get('/:id', protect, (req, res)=>{
     const { getUserById } = require('../controllers/userController');
     getUserById(req, res);
 });
-// Get user by ID
 
 
 

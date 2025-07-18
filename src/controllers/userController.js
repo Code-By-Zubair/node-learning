@@ -1,73 +1,141 @@
 const bcrypt = require('bcryptjs');
-const getUsers = (req,res)=>{
-    res.json(require('../data/users'));
-}
+const User = require('../models/user');
 
-// post api
-
-const createUser=(req,res)=>{
-    const {name} = req.body;
-    if(!name){
-        return res.status(400).json({error: 'Name is required'});
+// GET: all users
+const getUsers = async (req, res) => {
+    try {
+        const users = await User.find().select('-password');
+        if (!users || users.length === 0) {
+            return res.status(404).json({ error: 'No users found' });
+        }
+        res.json(users);
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
     }
-    const existingUser = require('../data/users').find(user => user.name === name);
-    if(existingUser){
-        return res.status(409).json({error: 'User already exists'});
-    }
-    const newUser = {
-        id: users.length + 1,
-        name
-    };
-    require('../data/users').push(newUser);
-    res.status(201).json(newUser);
 };
 
-const updateUser =(req, res)=> {
-    const userId = parseInt(req.params.id, 10);
-    const { name, email, password } = req.body;
-    
-    const user = require('../data/users').find(u => u.id === userId);
+// POST: create user
+const createUser = async (req, res) => {
+    try {
+        const { name, email, password } = req.body;
 
-    if(!user){
-        return res.status(404).json({ error: 'User not found' });
-    }
-    if(name) user.name = name;
-    if(email) user.email = email;
-    if(password){
+        if (!name || !email || !password) {
+            return res.status(400).json({ error: 'Name, email, and password are required' });
+        }
+
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(409).json({ error: 'User already exists' });
+        }
+
         const salt = bcrypt.genSaltSync(10);
-        user.password = bcrypt.hashSync(password, salt);
+        const hashedPassword = bcrypt.hashSync(password, salt);
 
+        const newUser = new User({
+            name,
+            email,
+            password: hashedPassword,
+        });
+
+        await newUser.save();
+        const { password: _, ...userWithoutPassword } = newUser.toObject();
+
+        res.status(201).json(userWithoutPassword);
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
     }
-    res.json({ message: 'User updated successfully', user });
-
 };
 
-// delte user
-const delteUser = (req, res)=> {
-    const userId = parseInt(req.params.id, 10);
-    const userIndex = require('../data/users').findIndex(u => u.id === userId);
-    if(userIndex === -1){
-        return res.status(404).json({ error: 'User not found' });
-    }
-    require('../data/users').splice(userIndex, 1);
-    res.json({ message: 'User deleted successfully' });
-}
+// PUT: update user
+const updateUser = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const { name, email, password } = req.body;
 
-const getUserById =(req, res) => {
-    const userId = parseInt(req.params.id, 10);
-    const user = require('../data/users').find(u => u.id === userId);
-    if(!user){
-        return res.status(404).json({ error: 'User not found' });
-    }
-    // return user without password
-    const {password, ...userWithoutPassword} = user;
-    res.json(userWithoutPassword);
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
 
-}
+        if (req.user.role !== 'admin' && req.user.id !== user._id.toString()) {
+            return res.status(403).json({ error: 'Not authorized to update this user' });
+        }
+
+        let updatedPassword = user.password;
+        if (password) {
+            const salt = bcrypt.genSaltSync(10);
+            updatedPassword = bcrypt.hashSync(password, salt);
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(
+            userId,
+            {
+                name: name || user.name,
+                email: email || user.email,
+                password: updatedPassword,
+            },
+            { new: true }
+        );
+
+        if (!updatedUser) {
+            return res.status(500).json({ error: 'Failed to update user' });
+        }
+
+        const { password: _, ...userWithoutPassword } = updatedUser.toObject();
+        res.json({ message: 'User updated successfully', user: userWithoutPassword });
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+};
+
+// DELETE: delete user
+const deleteUser = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        if (req.user.role !== 'admin' && req.user.id !== user._id.toString()) {
+            return res.status(403).json({ error: 'Not authorized to delete this user' });
+        }
+
+        const deleted = await User.findByIdAndDelete(userId);
+        if (!deleted) {
+            return res.status(500).json({ error: 'Failed to delete user' });
+        }
+
+        res.json({ message: 'User deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+};
+
+// GET: user by ID
+const getUserById = async (req, res) => {
+    try {
+        const userId = req.params.id;
+        const user = await User.findById(userId).select('-password');
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        if (req.user.role !== 'admin' && req.user.id !== user._id.toString()) {
+            return res.status(403).json({ error: 'Not authorized to view this user' });
+        }
+
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+};
+
 module.exports = {
     getUsers,
     createUser,
     updateUser,
-    delteUser,
+    deleteUser,
     getUserById,
 };
